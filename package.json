@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@tf2autobot/socket.io-client": "^1.0.4",
+    "@tf2autobot/tf2-sku": "^2.0.3",
     "death": "^1.1.0",
     "dotenv": "^10.0.0",
     "request": "^2.88.2",
@@ -23,7 +24,6 @@
     "sleep-async": "^1.0.5",
     "tf2-currencies-2": "^2.0.1",
     "tf2-schema-2": "^2.1.7",
-    "tf2-sku-2": "^2.0.2",
     "xmlhttprequest-ts": "^1.0.1"
   }
 }

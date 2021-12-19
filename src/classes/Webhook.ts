@@ -1,4 +1,4 @@
-import SKU from 'tf2-sku-2';
+import SKU from '@tf2autobot/tf2-sku';
 import SchemaManager from 'tf2-schema-2';
 import Currencies from 'tf2-currencies-2';
 import { XMLHttpRequest } from 'xmlhttprequest-ts';
