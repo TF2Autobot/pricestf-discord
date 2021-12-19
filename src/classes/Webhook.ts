@@ -1,5 +1,5 @@
 import SKU from '@tf2autobot/tf2-sku';
-import SchemaManager from 'tf2-schema-2';
+import SchemaManager from '@tf2autobot/tf2-schema';
 import Currencies from '@tf2autobot/tf2-currencies';
 import { XMLHttpRequest } from 'xmlhttprequest-ts';
 import { Item } from './Pricer';

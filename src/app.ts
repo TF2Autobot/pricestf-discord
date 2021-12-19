@@ -8,7 +8,7 @@ dotenv.config({ path: path.join(__dirname, '../.env') });
 
 import SocketManager from './classes/SocketManager';
 import { Pricelist, PriceUpdateQueue } from './classes/Webhook';
-import SchemaManager from 'tf2-schema-2';
+import SchemaManager from '@tf2autobot/tf2-schema';
 import PricerApi, { GetItemPriceResponse, Pricer } from './classes/Pricer';
 
 interface Currency {
