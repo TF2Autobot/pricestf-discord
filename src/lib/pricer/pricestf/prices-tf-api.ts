@@ -76,7 +76,7 @@ export default class PricesTfApi {
             method: httpMethod,
             url: `${this.URL}${path}`,
             headers: {
-                'User-Agent': 'TF2Autobot@' + process.env.BOT_VERSION,
+                'User-Agent': 'pricestf-discord@' + process.env.BOT_VERSION,
                 ...headers
             },
             json: true,
