@@ -2321,10 +2321,12 @@ export class Pricelist {
 
         if (!data.sku) return;
 
-        if (this.prices[data.sku]) {
+        const item = this.prices[data.sku];
+
+        if (item) {
             const oldPrice = {
-                buy: new Currencies(this.prices[data.sku].buy),
-                sell: new Currencies(this.prices[data.sku].sell)
+                buy: new Currencies(item.buy),
+                sell: new Currencies(item.sell)
             };
             const newPrices = {
                 buy: new Currencies(data.buy),
@@ -2346,19 +2348,11 @@ export class Pricelist {
         }
 
         if (data.sku === '5021;6') {
-            this.sendWebhookKeyUpdate({
-                sku: data.sku,
-                prices: { buy: data.buy, sell: data.sell },
-                time: data.time
-            });
+            this.sendWebhookKeyUpdate(data.sku, { buy: data.buy, sell: data.sell }, data.time);
         }
 
         if (data.buy !== null) {
-            this.sendWebHookPriceUpdateV1({
-                sku: data.sku,
-                prices: { buy: data.buy, sell: data.sell },
-                time: data.time
-            });
+            this.sendWebHookPriceUpdateV1(data.sku, { buy: data.buy, sell: data.sell }, data.time);
         }
     }
 
@@ -2369,11 +2363,11 @@ export class Pricelist {
         }, {});
     }
 
-    sendWebHookPriceUpdateV1(data: { sku: string; prices: Prices; time: number }): void {
-        const item = SKU.fromString(data.sku);
+    sendWebHookPriceUpdateV1(sku: string, prices: Prices, time: number): void {
+        const item = SKU.fromString(sku);
         const itemName = this.schema.getName(item, false);
 
-        const parts = data.sku.split(';');
+        const parts = sku.split(';');
         const newItem = SKU.fromString(`${parts[0]};6`);
         const itemImageUrl = this.schema.getItemByItemName(this.schema.getName(newItem, false));
 
@@ -2397,10 +2391,10 @@ export class Pricelist {
                 'https://community.cloudflare.steamstatic.com/economy/image/IzMF03bi9WpSBq-S-ekoE33L-iLqGFHVaU25ZzQNQcXdEH9myp0du1AHE66AL6lNU5Fw_2yIWtaMjIpQmjAT';
 
             const url = itemName.includes('Specialized')
-                ? ks2Images[data.sku]
+                ? ks2Images[sku]
                 : itemName.includes('Professional')
-                ? ks3Images[data.sku]
-                : ks1Images[data.sku];
+                ? ks3Images[sku]
+                : ks1Images[sku];
 
             if (url) {
                 itemImageUrlPrint = `${front}${url}/520fx520f`;
@@ -2412,7 +2406,7 @@ export class Pricelist {
         } else if (itemName.includes('Strangifier') && !itemName.includes('Chemistry Set')) {
             const front =
                 'https://community.cloudflare.steamstatic.com/economy/image/IzMF03bi9WpSBq-S-ekoE33L-iLqGFHVaU25ZzQNQcXdEH9myp0du1AHE66AL6lNU5Fw_2yIWtaMjIpQmjAT';
-            const url = strangifierImages[data.sku];
+            const url = strangifierImages[sku];
 
             if (url) {
                 itemImageUrlPrint = `${front}${url}/520fx520f`;
@@ -2451,29 +2445,29 @@ export class Pricelist {
 
         const keyPrice = this.keyPrice;
 
-        let entry = this.prices[data.sku];
+        let entry = this.prices[sku];
 
         if (entry === undefined) {
-            this.prices[data.sku] = Entry.fromData({
-                sku: data.sku,
+            this.prices[sku] = Entry.fromData({
+                sku: sku,
                 buy:
-                    data.prices.buy === null
+                    prices.buy === null
                         ? new Currencies({
                               keys: 0,
                               metal: 0
                           })
-                        : data.prices.buy,
+                        : prices.buy,
                 sell:
-                    data.prices.sell === null
+                    prices.sell === null
                         ? new Currencies({
                               keys: 0,
                               metal: 0
                           })
-                        : data.prices.sell,
-                time: data.time
+                        : prices.sell,
+                time: time
             });
 
-            entry = this.prices[data.sku];
+            entry = this.prices[sku];
         }
 
         const oldPrices = {
@@ -2485,15 +2479,15 @@ export class Pricelist {
         const oldSellValue = oldPrices.sell.toValue(keyPrice);
 
         const newPrices = {
-            buy: new Currencies(data.prices.buy),
-            sell: new Currencies(data.prices.sell)
+            buy: new Currencies(prices.buy),
+            sell: new Currencies(prices.sell)
         };
 
         const newBuyValue = newPrices.buy.toValue(keyPrice);
         const newSellValue = newPrices.sell.toValue(keyPrice);
 
-        this.prices[data.sku].buy = newPrices.buy;
-        this.prices[data.sku].sell = newPrices.sell;
+        this.prices[sku].buy = newPrices.buy;
+        this.prices[sku].sell = newPrices.sell;
 
         const buyChangesValue = Math.round(newBuyValue - oldBuyValue);
         const buyChanges = Currencies.toCurrencies(buyChangesValue).toString();
@@ -2508,12 +2502,12 @@ export class Pricelist {
                 {
                     author: {
                         name: itemName,
-                        url: `https://www.prices.tf/items/${data.sku}`,
+                        url: `https://www.prices.tf/items/${sku}`,
                         icon_url:
                             'https://steamcdn-a.akamaihd.net/steamcommunity/public/images/avatars/3d/3dba19679c4a689b9d24fa300856cbf3d948d631_full.jpg'
                     },
                     footer: {
-                        text: `${data.sku} • ${String(new Date(data.time * 1000)).replace(
+                        text: `${sku} • ${String(new Date(time * 1000)).replace(
                             'Coordinated Universal Time',
                             'UTC'
                         )} • v${botVersion}`
@@ -2549,7 +2543,7 @@ export class Pricelist {
             ]
         };
 
-        PriceUpdateQueue.enqueue(data.sku, priceUpdate);
+        PriceUpdateQueue.enqueue(sku, priceUpdate);
     }
 
     sendWebHookPriceUpdateV2(data: { sku: string; name: string; prices: Prices; time: number }[]): void {
@@ -2749,7 +2743,7 @@ export class Pricelist {
         });
     }
 
-    sendWebhookKeyUpdate(data: { sku: string; prices: Prices; time: number }): void {
+    sendWebhookKeyUpdate(sku: string, prices: Prices, time: number): void {
         const itemImageUrl = this.schema.getItemByItemName('Mann Co. Supply Crate Key');
 
         const priceUpdate: Webhook = {
@@ -2760,12 +2754,12 @@ export class Pricelist {
                 {
                     author: {
                         name: 'Mann Co. Supply Crate Key',
-                        url: `https://www.prices.tf/items/${data.sku}`,
+                        url: `https://www.prices.tf/items/${sku}`,
                         icon_url:
                             'https://steamcdn-a.akamaihd.net/steamcommunity/public/images/avatars/3d/3dba19679c4a689b9d24fa300856cbf3d948d631_full.jpg'
                     },
                     footer: {
-                        text: `${data.sku} • ${String(new Date(data.time * 1000)).replace(
+                        text: `${sku} • ${String(new Date(time * 1000)).replace(
                             'Coordinated Universal Time',
                             'UTC'
                         )} • v${botVersion}`
@@ -2777,15 +2771,13 @@ export class Pricelist {
                     fields: [
                         {
                             name: 'Buying for',
-                            value: `${data.prices.buy.keys > 0 ? `${data.prices.buy.keys} keys, ` : ''}${
-                                data.prices.buy.metal
-                            } ref`,
+                            value: `${prices.buy.keys > 0 ? `${prices.buy.keys} keys, ` : ''}${prices.buy.metal} ref`,
                             inline: true
                         },
                         {
                             name: 'Selling for',
-                            value: `${data.prices.sell.keys > 0 ? `${data.prices.sell.keys} keys, ` : ''}${
-                                data.prices.sell.metal
+                            value: `${prices.sell.keys > 0 ? `${prices.sell.keys} keys, ` : ''}${
+                                prices.sell.metal
                             } ref`,
                             inline: true
                         }
@@ -2797,9 +2789,9 @@ export class Pricelist {
         };
 
         this.keyPrices = {
-            buy: new Currencies(data.prices.buy),
-            sell: new Currencies(data.prices.sell),
-            time: data.time
+            buy: new Currencies(prices.buy),
+            sell: new Currencies(prices.sell),
+            time: time
         };
 
         // send key price update to only key price update webhook.
