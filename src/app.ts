@@ -20,6 +20,13 @@ const urls = JSON.parse(process.env.MAIN_WEBHOOK_URL) as string[];
 PriceUpdateQueue.setURL(urls);
 
 pricer.init().then(() => {
+    schemaManager.init(err => {
+        if (err) {
+            console.warn('Fail to get schema');
+            process.exit(1);
+        }
+    })
+
     const pricelist = new Pricelist(schemaManager.schema, pricer);
 
     pricelist.init().then(() => {

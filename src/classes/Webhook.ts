@@ -2319,6 +2319,8 @@ export class Pricelist {
     private handlePriceChange(data: GetItemPriceResponse): void {
         const keyPrice = this.keyPrice;
 
+        if (!data.sku) return;
+
         if (this.prices[data.sku]) {
             const oldPrice = {
                 buy: new Currencies(this.prices[data.sku].buy),
@@ -2368,13 +2370,15 @@ export class Pricelist {
     }
 
     sendWebHookPriceUpdateV1(data: { sku: string; prices: Prices; time: number }): void {
+        const item = SKU.fromString(data.sku);
+        const itemName = this.schema.getName(item, false);
+
         const parts = data.sku.split(';');
-        const itemName = this.schema.getName(SKU.fromString(data.sku));
         const newItem = SKU.fromString(`${parts[0]};6`);
         const itemImageUrl = this.schema.getItemByItemName(this.schema.getName(newItem, false));
 
         let itemImageUrlPrint: string;
-        const item = SKU.fromString(data.sku);
+        
 
         if (!itemImageUrl || !item) {
             if (item?.defindex === 266) {
