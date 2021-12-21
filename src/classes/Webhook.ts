@@ -29,7 +29,6 @@ interface Prices {
 
 export interface EntryData {
     sku: string;
-    name: string;
     buy?: Currency | null;
     sell?: Currency | null;
     time?: number | null;
@@ -38,30 +37,26 @@ export interface EntryData {
 export class Entry implements EntryData {
     sku: string;
 
-    name: string;
-
     buy: Currencies | null;
 
     sell: Currencies | null;
 
     time: number | null;
 
-    private constructor(entry: EntryData, name: string) {
+    private constructor(entry: EntryData) {
         this.sku = entry.sku;
-        this.name = name;
         this.buy = new Currencies(entry.buy);
         this.sell = new Currencies(entry.sell);
         this.time = entry.time;
     }
 
     static fromData(data: EntryData): Entry {
-        return new Entry(data, data.name);
+        return new Entry(data);
     }
 
     getJSON(): EntryData {
         return {
             sku: this.sku,
-            name: this.name,
             buy: this.buy === null ? null : this.buy.toJSON(),
             sell: this.sell === null ? null : this.sell.toJSON(),
             time: this.time
@@ -2267,55 +2262,57 @@ export class Pricelist {
 
     init(): void {
         console.log('Getting pricelist from prices.tf...');
-        
+
         this.pricer.getPricelist().then(pricelist => {
             this.setPricelist(pricelist.items);
-        })
+        });
 
         this.pricer.bindHandlePriceEvent(this.boundHandlePriceChange);
     }
 
     setPricelist(prices: Item[]): void {
         const count = prices.length;
-            for (let i = 0; i < count; i++) {
-                const entry = prices[i];
+        for (let i = 0; i < count; i++) {
+            const entry = prices[i];
 
-                if (entry.sku === null) {
-                    continue;
-                }
+            console.log(JSON.stringify(entry));
 
-                if (entry.buy === null) {
-                    entry.buy = new Currencies({
-                        keys: 0,
-                        metal: 0
-                    });
-                }
-
-                if (entry.sell === null) {
-                    entry.sell = new Currencies({
-                        keys: 0,
-                        metal: 0
-                    });
-                }
-
-                const newEntry = {
-                    sku: entry.sku,
-                    name: this.schema.getName(SKU.fromString(entry.sku)),
-                    buy: new Currencies(entry.buy),
-                    sell: new Currencies(entry.sell),
-                    time: entry.time
-                }
-
-                this.prices[entry.sku] = Entry.fromData(newEntry);
-
-                if (entry.sku === '5021;6') {
-                    this.keyPrices = {
-                        buy: entry.buy,
-                        sell: entry.sell,
-                        time: entry.time
-                    };
-                }
+            if (entry.sku === null) {
+                continue;
             }
+
+            if (entry.buy === null) {
+                entry.buy = new Currencies({
+                    keys: 0,
+                    metal: 0
+                });
+            }
+
+            if (entry.sell === null) {
+                entry.sell = new Currencies({
+                    keys: 0,
+                    metal: 0
+                });
+            }
+
+            const newEntry = {
+                sku: entry.sku,
+                name: this.schema.getName(SKU.fromString(entry.sku), false),
+                buy: new Currencies(entry.buy),
+                sell: new Currencies(entry.sell),
+                time: entry.time
+            };
+
+            this.prices[entry.sku] = Entry.fromData(newEntry);
+
+            if (entry.sku === '5021;6') {
+                this.keyPrices = {
+                    buy: entry.buy,
+                    sell: entry.sell,
+                    time: entry.time
+                };
+            }
+        }
     }
 
     private handlePriceChange(data: GetItemPriceResponse): void {
@@ -2335,16 +2332,15 @@ export class Pricelist {
             const newBuyValue = newPrices.buy.toValue(keyPrice);
             const oldSellValue = oldPrice.sell.toValue(keyPrice);
             const newSellValue = newPrices.sell.toValue(keyPrice);
-    
+
             const buyChangesValue = Math.round(newBuyValue - oldBuyValue);
             const sellChangesValue = Math.round(newSellValue - oldSellValue);
-    
+
             if (buyChangesValue === 0 && sellChangesValue === 0) {
                 // Ignore
                 return;
             }
         }
-
 
         if (data.sku === '5021;6') {
             this.sendWebhookKeyUpdate({
@@ -2456,7 +2452,6 @@ export class Pricelist {
         if (entry === undefined) {
             this.prices[data.sku] = Entry.fromData({
                 sku: data.sku,
-                name: itemName,
                 buy:
                     data.prices.buy === null
                         ? new Currencies({
@@ -2647,7 +2642,6 @@ export class Pricelist {
             if (entry === undefined) {
                 this.prices[data.sku] = Entry.fromData({
                     sku: data.sku,
-                    name: data.name,
                     buy:
                         data.prices.buy === null
                             ? new Currencies({
