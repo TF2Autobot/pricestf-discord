@@ -2378,7 +2378,6 @@ export class Pricelist {
         const itemImageUrl = this.schema.getItemByItemName(this.schema.getName(newItem, false));
 
         let itemImageUrlPrint: string;
-        
 
         if (!itemImageUrl || !item) {
             if (item?.defindex === 266) {
@@ -2850,6 +2849,10 @@ export class PriceUpdateQueue {
         this.url = url;
     }
 
+    private static sleepTime = 2000;
+
+    private static isRateLimited = false;
+
     private static isProcessing = false;
 
     static enqueue(sku: string, webhook: Webhook): void {
@@ -2879,7 +2882,12 @@ export class PriceUpdateQueue {
 
         this.isProcessing = true;
 
-        await sleepasync().Promise.sleep(1000);
+        await sleepasync().Promise.sleep(this.sleepTime);
+
+        if (this.isRateLimited) {
+            this.sleepTime = 2000;
+            this.isRateLimited = false;
+        }
 
         this.url.forEach((url, i) => {
             sendWebhook(url, this.priceUpdate[sku])
@@ -2888,6 +2896,14 @@ export class PriceUpdateQueue {
                 })
                 .catch(err => {
                     console.log(`❌ Failed to send ${sku} price update webhook to Discord ${i}: `, err);
+
+                    if (err.text) {
+                        const errContent = JSON.parse(err.text);
+                        if (errContent.message === 'The resource is being rate limited.') {
+                            this.sleepTime = errContent.retry_after;
+                            this.isRateLimited = true;
+                        }
+                    }
                 })
                 .finally(() => {
                     if (this.url.length - i === 1) {
