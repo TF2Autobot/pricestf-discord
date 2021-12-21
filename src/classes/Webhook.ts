@@ -2275,8 +2275,6 @@ export class Pricelist {
         for (let i = 0; i < count; i++) {
             const entry = prices[i];
 
-            console.log(JSON.stringify(entry));
-
             if (entry.sku === null) {
                 continue;
             }
@@ -2297,7 +2295,6 @@ export class Pricelist {
 
             const newEntry = {
                 sku: entry.sku,
-                name: this.schema.getName(SKU.fromString(entry.sku), false),
                 buy: new Currencies(entry.buy),
                 sell: new Currencies(entry.sell),
                 time: entry.time
