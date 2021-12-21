@@ -1,8 +1,10 @@
-import SKU from 'tf2-sku-2';
-import SchemaManager from 'tf2-schema-2';
-import Currencies from 'tf2-currencies-2';
+import SKU from '@tf2autobot/tf2-sku';
+import SchemaManager from '@tf2autobot/tf2-schema';
+import Currencies from '@tf2autobot/tf2-currencies';
 import { XMLHttpRequest } from 'xmlhttprequest-ts';
-import { Item } from './Pricer';
+import { Item } from './IPricer';
+import PricesTfPricer from '../lib/pricer/pricestf/prices-tf-pricer';
+import { GetItemPriceResponse } from './IPricer';
 
 const priceUpdateWebhookURLs = JSON.parse(process.env.MAIN_WEBHOOK_URL) as string[];
 
@@ -27,7 +29,6 @@ interface Prices {
 
 export interface EntryData {
     sku: string;
-    name: string;
     buy?: Currency | null;
     sell?: Currency | null;
     time?: number | null;
@@ -36,30 +37,26 @@ export interface EntryData {
 export class Entry implements EntryData {
     sku: string;
 
-    name: string;
-
     buy: Currencies | null;
 
     sell: Currencies | null;
 
     time: number | null;
 
-    private constructor(entry: EntryData, name: string) {
+    private constructor(entry: EntryData) {
         this.sku = entry.sku;
-        this.name = name;
         this.buy = new Currencies(entry.buy);
         this.sell = new Currencies(entry.sell);
         this.time = entry.time;
     }
 
     static fromData(data: EntryData): Entry {
-        return new Entry(data, data.name);
+        return new Entry(data);
     }
 
     getJSON(): EntryData {
         return {
             sku: this.sku,
-            name: this.name,
             buy: this.buy === null ? null : this.buy.toJSON(),
             sell: this.sell === null ? null : this.sell.toJSON(),
             time: this.time
@@ -2256,14 +2253,35 @@ export class Pricelist {
         return this.keyPrices.sell.metal;
     }
 
-    constructor(private readonly schema: SchemaManager.Schema) {
+    private readonly boundHandlePriceChange;
+
+    constructor(private readonly schema: SchemaManager.Schema, private pricer: PricesTfPricer) {
         this.schema = schema;
+        this.boundHandlePriceChange = this.handlePriceChange.bind(this);
+    }
+
+    init(): Promise<void> {
+        return new Promise(resolve => {
+            console.info('Getting pricelist from prices.tf...');
+
+            this.pricer.getPricelist().then(pricelist => {
+                this.setPricelist(pricelist.items);
+
+                this.pricer.bindHandlePriceEvent(this.boundHandlePriceChange);
+
+                return resolve();
+            });
+        });
     }
 
     setPricelist(prices: Item[]): void {
         const count = prices.length;
         for (let i = 0; i < count; i++) {
             const entry = prices[i];
+
+            if (entry.sku === null) {
+                continue;
+            }
 
             if (entry.buy === null) {
                 entry.buy = new Currencies({
@@ -2279,7 +2297,14 @@ export class Pricelist {
                 });
             }
 
-            this.prices[entry.sku] = Entry.fromData(entry);
+            const newEntry = {
+                sku: entry.sku,
+                buy: new Currencies(entry.buy),
+                sell: new Currencies(entry.sell),
+                time: entry.time
+            };
+
+            this.prices[entry.sku] = Entry.fromData(newEntry);
 
             if (entry.sku === '5021;6') {
                 this.keyPrices = {
@@ -2291,13 +2316,77 @@ export class Pricelist {
         }
     }
 
-    sendWebHookPriceUpdateV1(data: { sku: string; name: string; prices: Prices; time: number }): void {
-        const parts = data.sku.split(';');
+    private handlePriceChange(data: GetItemPriceResponse): void {
+        const keyPrice = this.keyPrice;
+
+        if (!data.sku) return;
+
+        const item = this.prices[data.sku];
+
+        let buyChangesValue = null;
+        let sellChangesValue = null;
+
+        if (item) {
+            const oldPrice = {
+                buy: new Currencies(item.buy),
+                sell: new Currencies(item.sell)
+            };
+            const newPrices = {
+                buy: new Currencies(data.buy),
+                sell: new Currencies(data.sell)
+            };
+
+            const oldBuyValue = oldPrice.buy.toValue(keyPrice);
+            const newBuyValue = newPrices.buy.toValue(keyPrice);
+            const oldSellValue = oldPrice.sell.toValue(keyPrice);
+            const newSellValue = newPrices.sell.toValue(keyPrice);
+
+            buyChangesValue = Math.round(newBuyValue - oldBuyValue);
+            sellChangesValue = Math.round(newSellValue - oldSellValue);
+
+            if (buyChangesValue === 0 && sellChangesValue === 0) {
+                // Ignore
+                return;
+            }
+        }
+
+        if (data.sku === '5021;6') {
+            this.sendWebhookKeyUpdate(data.sku, { buy: data.buy, sell: data.sell }, data.time);
+        }
+
+        if (data.buy !== null) {
+            this.sendWebHookPriceUpdateV1(
+                data.sku,
+                { buy: data.buy, sell: data.sell },
+                data.time,
+                buyChangesValue,
+                sellChangesValue
+            );
+        }
+    }
+
+    static transformPricesFromPricer(prices: Item[]): { [p: string]: Item } {
+        return prices.reduce((obj, i) => {
+            obj[i.sku] = i;
+            return obj;
+        }, {});
+    }
+
+    sendWebHookPriceUpdateV1(
+        sku: string,
+        prices: Prices,
+        time: number,
+        buyChangesValue: number | null,
+        sellChangesValue: number | null
+    ): void {
+        const item = SKU.fromString(sku);
+        const itemName = this.schema.getName(item, false);
+
+        const parts = sku.split(';');
         const newItem = SKU.fromString(`${parts[0]};6`);
         const itemImageUrl = this.schema.getItemByItemName(this.schema.getName(newItem, false));
 
         let itemImageUrlPrint: string;
-        const item = SKU.fromString(data.sku);
 
         if (!itemImageUrl || !item) {
             if (item?.defindex === 266) {
@@ -2307,20 +2396,20 @@ export class Pricelist {
                 itemImageUrlPrint = 'https://jberlife.com/wp-content/uploads/2019/07/sorry-image-not-available.jpg';
             }
         } else if (
-            data.name.includes('Non-Craftable') &&
-            data.name.includes('Killstreak') &&
-            data.name.includes('Kit') &&
-            !data.name.includes('Fabricator')
+            itemName.includes('Non-Craftable') &&
+            itemName.includes('Killstreak') &&
+            itemName.includes('Kit') &&
+            !itemName.includes('Fabricator')
         ) {
             // Get image for Non-Craftable Killstreak/Specialized Killstreak/Professional Killstreak [Weapon] Kit
             const front =
                 'https://community.cloudflare.steamstatic.com/economy/image/IzMF03bi9WpSBq-S-ekoE33L-iLqGFHVaU25ZzQNQcXdEH9myp0du1AHE66AL6lNU5Fw_2yIWtaMjIpQmjAT';
 
-            const url = data.name.includes('Specialized')
-                ? ks2Images[data.sku]
-                : data.name.includes('Professional')
-                ? ks3Images[data.sku]
-                : ks1Images[data.sku];
+            const url = itemName.includes('Specialized')
+                ? ks2Images[sku]
+                : itemName.includes('Professional')
+                ? ks3Images[sku]
+                : ks1Images[sku];
 
             if (url) {
                 itemImageUrlPrint = `${front}${url}/520fx520f`;
@@ -2329,10 +2418,10 @@ export class Pricelist {
             if (!itemImageUrlPrint) {
                 itemImageUrlPrint = itemImageUrl.image_url_large;
             }
-        } else if (data.name.includes('Strangifier') && !data.name.includes('Chemistry Set')) {
+        } else if (itemName.includes('Strangifier') && !itemName.includes('Chemistry Set')) {
             const front =
                 'https://community.cloudflare.steamstatic.com/economy/image/IzMF03bi9WpSBq-S-ekoE33L-iLqGFHVaU25ZzQNQcXdEH9myp0du1AHE66AL6lNU5Fw_2yIWtaMjIpQmjAT';
-            const url = strangifierImages[data.sku];
+            const url = strangifierImages[sku];
 
             if (url) {
                 itemImageUrlPrint = `${front}${url}/520fx520f`;
@@ -2371,30 +2460,29 @@ export class Pricelist {
 
         const keyPrice = this.keyPrice;
 
-        let entry = this.prices[data.sku];
+        let entry = this.prices[sku];
 
         if (entry === undefined) {
-            this.prices[data.sku] = Entry.fromData({
-                sku: data.sku,
-                name: data.name,
+            this.prices[sku] = Entry.fromData({
+                sku: sku,
                 buy:
-                    data.prices.buy === null
+                    prices.buy === null
                         ? new Currencies({
                               keys: 0,
                               metal: 0
                           })
-                        : data.prices.buy,
+                        : prices.buy,
                 sell:
-                    data.prices.sell === null
+                    prices.sell === null
                         ? new Currencies({
                               keys: 0,
                               metal: 0
                           })
-                        : data.prices.sell,
-                time: data.time
+                        : prices.sell,
+                time: time
             });
 
-            entry = this.prices[data.sku];
+            entry = this.prices[sku];
         }
 
         const oldPrices = {
@@ -2402,23 +2490,26 @@ export class Pricelist {
             sell: entry.sell
         };
 
-        const oldBuyValue = oldPrices.buy.toValue(keyPrice);
-        const oldSellValue = oldPrices.sell.toValue(keyPrice);
-
         const newPrices = {
-            buy: new Currencies(data.prices.buy),
-            sell: new Currencies(data.prices.sell)
+            buy: new Currencies(prices.buy),
+            sell: new Currencies(prices.sell)
         };
 
-        const newBuyValue = newPrices.buy.toValue(keyPrice);
-        const newSellValue = newPrices.sell.toValue(keyPrice);
+        if (buyChangesValue === null || sellChangesValue === null) {
+            const oldBuyValue = oldPrices.buy.toValue(keyPrice);
+            const oldSellValue = oldPrices.sell.toValue(keyPrice);
 
-        this.prices[data.sku].buy = newPrices.buy;
-        this.prices[data.sku].sell = newPrices.sell;
+            const newBuyValue = newPrices.buy.toValue(keyPrice);
+            const newSellValue = newPrices.sell.toValue(keyPrice);
 
-        const buyChangesValue = Math.round(newBuyValue - oldBuyValue);
+            this.prices[sku].buy = newPrices.buy;
+            this.prices[sku].sell = newPrices.sell;
+
+            buyChangesValue = Math.round(newBuyValue - oldBuyValue);
+            sellChangesValue = Math.round(newSellValue - oldSellValue);
+        }
+
         const buyChanges = Currencies.toCurrencies(buyChangesValue).toString();
-        const sellChangesValue = Math.round(newSellValue - oldSellValue);
         const sellChanges = Currencies.toCurrencies(sellChangesValue).toString();
 
         const priceUpdate: Webhook = {
@@ -2428,13 +2519,13 @@ export class Pricelist {
             embeds: [
                 {
                     author: {
-                        name: data.name,
-                        url: `https://www.prices.tf/items/${data.sku}`,
+                        name: itemName,
+                        url: `https://www.prices.tf/items/${sku}`,
                         icon_url:
                             'https://steamcdn-a.akamaihd.net/steamcommunity/public/images/avatars/3d/3dba19679c4a689b9d24fa300856cbf3d948d631_full.jpg'
                     },
                     footer: {
-                        text: `${data.sku} • ${String(new Date(data.time * 1000)).replace(
+                        text: `${sku} • ${String(new Date(time * 1000)).replace(
                             'Coordinated Universal Time',
                             'UTC'
                         )} • v${botVersion}`
@@ -2470,7 +2561,7 @@ export class Pricelist {
             ]
         };
 
-        PriceUpdateQueue.enqueue(data.sku, priceUpdate);
+        PriceUpdateQueue.enqueue(sku, priceUpdate);
     }
 
     sendWebHookPriceUpdateV2(data: { sku: string; name: string; prices: Prices; time: number }[]): void {
@@ -2567,7 +2658,6 @@ export class Pricelist {
             if (entry === undefined) {
                 this.prices[data.sku] = Entry.fromData({
                     sku: data.sku,
-                    name: data.name,
                     buy:
                         data.prices.buy === null
                             ? new Currencies({
@@ -2671,7 +2761,7 @@ export class Pricelist {
         });
     }
 
-    sendWebhookKeyUpdate(data: { sku: string; name: string; prices: Prices; time: number }): void {
+    sendWebhookKeyUpdate(sku: string, prices: Prices, time: number): void {
         const itemImageUrl = this.schema.getItemByItemName('Mann Co. Supply Crate Key');
 
         const priceUpdate: Webhook = {
@@ -2681,13 +2771,13 @@ export class Pricelist {
             embeds: [
                 {
                     author: {
-                        name: data.name,
-                        url: `https://www.prices.tf/items/${data.sku}`,
+                        name: 'Mann Co. Supply Crate Key',
+                        url: `https://www.prices.tf/items/${sku}`,
                         icon_url:
                             'https://steamcdn-a.akamaihd.net/steamcommunity/public/images/avatars/3d/3dba19679c4a689b9d24fa300856cbf3d948d631_full.jpg'
                     },
                     footer: {
-                        text: `${data.sku} • ${String(new Date(data.time * 1000)).replace(
+                        text: `${sku} • ${String(new Date(time * 1000)).replace(
                             'Coordinated Universal Time',
                             'UTC'
                         )} • v${botVersion}`
@@ -2699,15 +2789,13 @@ export class Pricelist {
                     fields: [
                         {
                             name: 'Buying for',
-                            value: `${data.prices.buy.keys > 0 ? `${data.prices.buy.keys} keys, ` : ''}${
-                                data.prices.buy.metal
-                            } ref`,
+                            value: `${prices.buy.keys > 0 ? `${prices.buy.keys} keys, ` : ''}${prices.buy.metal} ref`,
                             inline: true
                         },
                         {
                             name: 'Selling for',
-                            value: `${data.prices.sell.keys > 0 ? `${data.prices.sell.keys} keys, ` : ''}${
-                                data.prices.sell.metal
+                            value: `${prices.sell.keys > 0 ? `${prices.sell.keys} keys, ` : ''}${
+                                prices.sell.metal
                             } ref`,
                             inline: true
                         }
@@ -2719,9 +2807,9 @@ export class Pricelist {
         };
 
         this.keyPrices = {
-            buy: new Currencies(data.prices.buy),
-            sell: new Currencies(data.prices.sell),
-            time: data.time
+            buy: new Currencies(prices.buy),
+            sell: new Currencies(prices.sell),
+            time: time
         };
 
         // send key price update to only key price update webhook.
@@ -2771,6 +2859,10 @@ export class PriceUpdateQueue {
         this.url = url;
     }
 
+    private static sleepTime = 2000;
+
+    private static isRateLimited = false;
+
     private static isProcessing = false;
 
     static enqueue(sku: string, webhook: Webhook): void {
@@ -2800,7 +2892,12 @@ export class PriceUpdateQueue {
 
         this.isProcessing = true;
 
-        await sleepasync().Promise.sleep(1000);
+        await sleepasync().Promise.sleep(this.sleepTime);
+
+        if (this.isRateLimited) {
+            this.sleepTime = 2000;
+            this.isRateLimited = false;
+        }
 
         this.url.forEach((url, i) => {
             sendWebhook(url, this.priceUpdate[sku])
@@ -2809,6 +2906,14 @@ export class PriceUpdateQueue {
                 })
                 .catch(err => {
                     console.log(`❌ Failed to send ${sku} price update webhook to Discord ${i}: `, err);
+
+                    if (err.text) {
+                        const errContent = JSON.parse(err.text);
+                        if (errContent.message === 'The resource is being rate limited.') {
+                            this.sleepTime = errContent.retry_after;
+                            this.isRateLimited = true;
+                        }
+                    }
                 })
                 .finally(() => {
                     if (this.url.length - i === 1) {

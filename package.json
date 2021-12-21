@@ -12,18 +12,20 @@
     "@types/death": "^1.1.1",
     "@types/node": "^15.12.2",
     "@types/request": "^2.48.5",
+    "@types/ws": "^8.2.2",
     "typescript": "^4.3.2"
   },
   "dependencies": {
-    "@tf2autobot/socket.io-client": "^1.0.4",
+    "@tf2autobot/tf2-currencies": "^2.0.1",
+    "@tf2autobot/tf2-schema": "^2.2.2",
+    "@tf2autobot/tf2-sku": "^2.0.3",
     "death": "^1.1.0",
     "dotenv": "^10.0.0",
+    "reconnecting-websocket": "^4.4.0",
     "request": "^2.88.2",
     "request-retry-dayjs": "^1.0.4",
     "sleep-async": "^1.0.5",
-    "tf2-currencies-2": "^2.0.1",
-    "tf2-schema-2": "^2.1.7",
-    "tf2-sku-2": "^2.0.2",
+    "ws": "^8.3.0",
     "xmlhttprequest-ts": "^1.0.1"
   }
 }
