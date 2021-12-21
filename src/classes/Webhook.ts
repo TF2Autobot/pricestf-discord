@@ -2,7 +2,9 @@ import SKU from '@tf2autobot/tf2-sku';
 import SchemaManager from '@tf2autobot/tf2-schema';
 import Currencies from '@tf2autobot/tf2-currencies';
 import { XMLHttpRequest } from 'xmlhttprequest-ts';
-import { Item } from './Pricer';
+import { Item } from './IPricer';
+import PricesTfPricer from '../lib/pricer/pricestf/prices-tf-pricer';
+import { GetItemPriceResponse } from './IPricer';
 
 const priceUpdateWebhookURLs = JSON.parse(process.env.MAIN_WEBHOOK_URL) as string[];
 
@@ -2256,43 +2258,102 @@ export class Pricelist {
         return this.keyPrices.sell.metal;
     }
 
-    constructor(private readonly schema: SchemaManager.Schema) {
+    private readonly boundHandlePriceChange;
+
+    constructor(private readonly schema: SchemaManager.Schema, private pricer: PricesTfPricer) {
         this.schema = schema;
+        this.boundHandlePriceChange = this.handlePriceChange.bind(this);
+    }
+
+    init(): void {
+        console.log('Getting pricelist from prices.tf...');
+        
+        this.pricer.getPricelist().then(pricelist => {
+            this.setPricelist(pricelist.items);
+        })
+
+        this.pricer.bindHandlePriceEvent(this.boundHandlePriceChange);
     }
 
     setPricelist(prices: Item[]): void {
         const count = prices.length;
-        for (let i = 0; i < count; i++) {
-            const entry = prices[i];
+            for (let i = 0; i < count; i++) {
+                const entry = prices[i];
 
-            if (entry.buy === null) {
-                entry.buy = new Currencies({
-                    keys: 0,
-                    metal: 0
-                });
-            }
+                if (entry.buy === null) {
+                    entry.buy = new Currencies({
+                        keys: 0,
+                        metal: 0
+                    });
+                }
 
-            if (entry.sell === null) {
-                entry.sell = new Currencies({
-                    keys: 0,
-                    metal: 0
-                });
-            }
+                if (entry.sell === null) {
+                    entry.sell = new Currencies({
+                        keys: 0,
+                        metal: 0
+                    });
+                }
 
-            this.prices[entry.sku] = Entry.fromData(entry);
-
-            if (entry.sku === '5021;6') {
-                this.keyPrices = {
-                    buy: entry.buy,
-                    sell: entry.sell,
+                const newEntry = {
+                    sku: entry.sku,
+                    name: this.schema.getName(SKU.fromString(entry.sku)),
+                    buy: new Currencies(entry.buy),
+                    sell: new Currencies(entry.sell),
                     time: entry.time
-                };
+                }
+
+                this.prices[entry.sku] = Entry.fromData(newEntry);
+
+                if (entry.sku === '5021;6') {
+                    this.keyPrices = {
+                        buy: entry.buy,
+                        sell: entry.sell,
+                        time: entry.time
+                    };
+                }
             }
+    }
+
+    private handlePriceChange(data: GetItemPriceResponse): void {
+        if (data.sku === '5021;6') {
+            this.sendWebhookKeyUpdate({
+                sku: data.sku,
+                prices: { buy: data.buy, sell: data.sell },
+                time: data.time
+            });
+        }
+
+        if (data.buy !== null) {
+            this.sendWebHookPriceUpdateV1({
+                sku: data.sku,
+                prices: { buy: data.buy, sell: data.sell },
+                time: data.time
+            });
+
+            // datas.push({
+            //     sku: data.sku,
+            //     name: data.name,
+            //     prices: { buy: data.buy, sell: data.sell },
+            //     time: data.time
+            // });
+
+            // if (datas.length > 2) {
+            //     pricelist.sendWebHookPriceUpdateV2(datas);
+            //     datas.length = 0;
+            // }
         }
     }
 
-    sendWebHookPriceUpdateV1(data: { sku: string; name: string; prices: Prices; time: number }): void {
+    static transformPricesFromPricer(prices: Item[]): { [p: string]: Item } {
+        return prices.reduce((obj, i) => {
+            obj[i.sku] = i;
+            return obj;
+        }, {});
+    }
+
+    sendWebHookPriceUpdateV1(data: { sku: string; prices: Prices; time: number }): void {
         const parts = data.sku.split(';');
+        const itemName = this.schema.getName(SKU.fromString(data.sku));
         const newItem = SKU.fromString(`${parts[0]};6`);
         const itemImageUrl = this.schema.getItemByItemName(this.schema.getName(newItem, false));
 
@@ -2307,18 +2368,18 @@ export class Pricelist {
                 itemImageUrlPrint = 'https://jberlife.com/wp-content/uploads/2019/07/sorry-image-not-available.jpg';
             }
         } else if (
-            data.name.includes('Non-Craftable') &&
-            data.name.includes('Killstreak') &&
-            data.name.includes('Kit') &&
-            !data.name.includes('Fabricator')
+            itemName.includes('Non-Craftable') &&
+            itemName.includes('Killstreak') &&
+            itemName.includes('Kit') &&
+            !itemName.includes('Fabricator')
         ) {
             // Get image for Non-Craftable Killstreak/Specialized Killstreak/Professional Killstreak [Weapon] Kit
             const front =
                 'https://community.cloudflare.steamstatic.com/economy/image/IzMF03bi9WpSBq-S-ekoE33L-iLqGFHVaU25ZzQNQcXdEH9myp0du1AHE66AL6lNU5Fw_2yIWtaMjIpQmjAT';
 
-            const url = data.name.includes('Specialized')
+            const url = itemName.includes('Specialized')
                 ? ks2Images[data.sku]
-                : data.name.includes('Professional')
+                : itemName.includes('Professional')
                 ? ks3Images[data.sku]
                 : ks1Images[data.sku];
 
@@ -2329,7 +2390,7 @@ export class Pricelist {
             if (!itemImageUrlPrint) {
                 itemImageUrlPrint = itemImageUrl.image_url_large;
             }
-        } else if (data.name.includes('Strangifier') && !data.name.includes('Chemistry Set')) {
+        } else if (itemName.includes('Strangifier') && !itemName.includes('Chemistry Set')) {
             const front =
                 'https://community.cloudflare.steamstatic.com/economy/image/IzMF03bi9WpSBq-S-ekoE33L-iLqGFHVaU25ZzQNQcXdEH9myp0du1AHE66AL6lNU5Fw_2yIWtaMjIpQmjAT';
             const url = strangifierImages[data.sku];
@@ -2376,7 +2437,7 @@ export class Pricelist {
         if (entry === undefined) {
             this.prices[data.sku] = Entry.fromData({
                 sku: data.sku,
-                name: data.name,
+                name: itemName,
                 buy:
                     data.prices.buy === null
                         ? new Currencies({
@@ -2428,7 +2489,7 @@ export class Pricelist {
             embeds: [
                 {
                     author: {
-                        name: data.name,
+                        name: itemName,
                         url: `https://www.prices.tf/items/${data.sku}`,
                         icon_url:
                             'https://steamcdn-a.akamaihd.net/steamcommunity/public/images/avatars/3d/3dba19679c4a689b9d24fa300856cbf3d948d631_full.jpg'
@@ -2671,7 +2732,7 @@ export class Pricelist {
         });
     }
 
-    sendWebhookKeyUpdate(data: { sku: string; name: string; prices: Prices; time: number }): void {
+    sendWebhookKeyUpdate(data: { sku: string; prices: Prices; time: number }): void {
         const itemImageUrl = this.schema.getItemByItemName('Mann Co. Supply Crate Key');
 
         const priceUpdate: Webhook = {
@@ -2681,7 +2742,7 @@ export class Pricelist {
             embeds: [
                 {
                     author: {
-                        name: data.name,
+                        name: 'Mann Co. Supply Crate Key',
                         url: `https://www.prices.tf/items/${data.sku}`,
                         icon_url:
                             'https://steamcdn-a.akamaihd.net/steamcommunity/public/images/avatars/3d/3dba19679c4a689b9d24fa300856cbf3d948d631_full.jpg'
