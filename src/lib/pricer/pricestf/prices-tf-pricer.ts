@@ -34,7 +34,7 @@ export default class PricesTfPricer implements IPricer {
         const minDelay = 200;
 
         do {
-            await Promise.delay(delay);
+            await new Promise(resolve => setTimeout(resolve, delay));
             const start = new Date().getTime();
             console.debug('Getting page ' + currentPage.toString() + ' of ' + totalPages.toString());
             const response = await this.api.getPricelistPage(currentPage);
