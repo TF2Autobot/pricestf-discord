@@ -2323,6 +2323,9 @@ export class Pricelist {
 
         const item = this.prices[data.sku];
 
+        let buyChangesValue = null;
+        let sellChangesValue = null;
+
         if (item) {
             const oldPrice = {
                 buy: new Currencies(item.buy),
@@ -2338,8 +2341,8 @@ export class Pricelist {
             const oldSellValue = oldPrice.sell.toValue(keyPrice);
             const newSellValue = newPrices.sell.toValue(keyPrice);
 
-            const buyChangesValue = Math.round(newBuyValue - oldBuyValue);
-            const sellChangesValue = Math.round(newSellValue - oldSellValue);
+            buyChangesValue = Math.round(newBuyValue - oldBuyValue);
+            sellChangesValue = Math.round(newSellValue - oldSellValue);
 
             if (buyChangesValue === 0 && sellChangesValue === 0) {
                 // Ignore
@@ -2352,7 +2355,13 @@ export class Pricelist {
         }
 
         if (data.buy !== null) {
-            this.sendWebHookPriceUpdateV1(data.sku, { buy: data.buy, sell: data.sell }, data.time);
+            this.sendWebHookPriceUpdateV1(
+                data.sku,
+                { buy: data.buy, sell: data.sell },
+                data.time,
+                buyChangesValue,
+                sellChangesValue
+            );
         }
     }
 
@@ -2363,7 +2372,13 @@ export class Pricelist {
         }, {});
     }
 
-    sendWebHookPriceUpdateV1(sku: string, prices: Prices, time: number): void {
+    sendWebHookPriceUpdateV1(
+        sku: string,
+        prices: Prices,
+        time: number,
+        buyChangesValue: number | null,
+        sellChangesValue: number | null
+    ): void {
         const item = SKU.fromString(sku);
         const itemName = this.schema.getName(item, false);
 
@@ -2475,23 +2490,26 @@ export class Pricelist {
             sell: entry.sell
         };
 
-        const oldBuyValue = oldPrices.buy.toValue(keyPrice);
-        const oldSellValue = oldPrices.sell.toValue(keyPrice);
-
         const newPrices = {
             buy: new Currencies(prices.buy),
             sell: new Currencies(prices.sell)
         };
 
-        const newBuyValue = newPrices.buy.toValue(keyPrice);
-        const newSellValue = newPrices.sell.toValue(keyPrice);
+        if (buyChangesValue === null || sellChangesValue === null) {
+            const oldBuyValue = oldPrices.buy.toValue(keyPrice);
+            const oldSellValue = oldPrices.sell.toValue(keyPrice);
 
-        this.prices[sku].buy = newPrices.buy;
-        this.prices[sku].sell = newPrices.sell;
+            const newBuyValue = newPrices.buy.toValue(keyPrice);
+            const newSellValue = newPrices.sell.toValue(keyPrice);
 
-        const buyChangesValue = Math.round(newBuyValue - oldBuyValue);
+            this.prices[sku].buy = newPrices.buy;
+            this.prices[sku].sell = newPrices.sell;
+
+            buyChangesValue = Math.round(newBuyValue - oldBuyValue);
+            sellChangesValue = Math.round(newSellValue - oldSellValue);
+        }
+
         const buyChanges = Currencies.toCurrencies(buyChangesValue).toString();
-        const sellChangesValue = Math.round(newSellValue - oldSellValue);
         const sellChanges = Currencies.toCurrencies(sellChangesValue).toString();
 
         const priceUpdate: Webhook = {
