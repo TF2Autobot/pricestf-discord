@@ -2315,6 +2315,33 @@ export class Pricelist {
     }
 
     private handlePriceChange(data: GetItemPriceResponse): void {
+        const keyPrice = this.keyPrice;
+
+        if (this.prices[data.sku]) {
+            const oldPrice = {
+                buy: new Currencies(this.prices[data.sku].buy),
+                sell: new Currencies(this.prices[data.sku].sell)
+            };
+            const newPrices = {
+                buy: new Currencies(data.buy),
+                sell: new Currencies(data.sell)
+            };
+
+            const oldBuyValue = oldPrice.buy.toValue(keyPrice);
+            const newBuyValue = newPrices.buy.toValue(keyPrice);
+            const oldSellValue = oldPrice.sell.toValue(keyPrice);
+            const newSellValue = newPrices.sell.toValue(keyPrice);
+    
+            const buyChangesValue = Math.round(newBuyValue - oldBuyValue);
+            const sellChangesValue = Math.round(newSellValue - oldSellValue);
+    
+            if (buyChangesValue === 0 && sellChangesValue === 0) {
+                // Ignore
+                return;
+            }
+        }
+
+
         if (data.sku === '5021;6') {
             this.sendWebhookKeyUpdate({
                 sku: data.sku,
@@ -2329,18 +2356,6 @@ export class Pricelist {
                 prices: { buy: data.buy, sell: data.sell },
                 time: data.time
             });
-
-            // datas.push({
-            //     sku: data.sku,
-            //     name: data.name,
-            //     prices: { buy: data.buy, sell: data.sell },
-            //     time: data.time
-            // });
-
-            // if (datas.length > 2) {
-            //     pricelist.sendWebHookPriceUpdateV2(datas);
-            //     datas.length = 0;
-            // }
         }
     }
 
