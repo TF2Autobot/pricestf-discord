@@ -25,13 +25,13 @@ pricer.init().then(() => {
             console.warn('Fail to get schema');
             process.exit(1);
         }
-    })
 
-    const pricelist = new Pricelist(schemaManager.schema, pricer);
+        const pricelist = new Pricelist(schemaManager.schema, pricer);
 
-    pricelist.init().then(() => {
-        console.info('Connecting to socket server...');
-        pricer.connect();
+        pricelist.init().then(() => {
+            console.info('Connecting to socket server...');
+            pricer.connect();
+        });
     });
 });
 
