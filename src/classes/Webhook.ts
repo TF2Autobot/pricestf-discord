@@ -2280,6 +2280,10 @@ export class Pricelist {
             for (let i = 0; i < count; i++) {
                 const entry = prices[i];
 
+                if (entry.sku === null) {
+                    continue;
+                }
+
                 if (entry.buy === null) {
                     entry.buy = new Currencies({
                         keys: 0,
