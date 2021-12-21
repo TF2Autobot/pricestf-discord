@@ -2260,14 +2260,18 @@ export class Pricelist {
         this.boundHandlePriceChange = this.handlePriceChange.bind(this);
     }
 
-    init(): void {
-        console.log('Getting pricelist from prices.tf...');
+    init(): Promise<void> {
+        return new Promise(resolve => {
+            console.info('Getting pricelist from prices.tf...');
 
-        this.pricer.getPricelist().then(pricelist => {
-            this.setPricelist(pricelist.items);
+            this.pricer.getPricelist().then(pricelist => {
+                this.setPricelist(pricelist.items);
+
+                this.pricer.bindHandlePriceEvent(this.boundHandlePriceChange);
+
+                return resolve();
+            });
         });
-
-        this.pricer.bindHandlePriceEvent(this.boundHandlePriceChange);
     }
 
     setPricelist(prices: Item[]): void {

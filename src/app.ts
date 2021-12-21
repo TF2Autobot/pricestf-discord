@@ -22,7 +22,10 @@ PriceUpdateQueue.setURL(urls);
 pricer.init().then(() => {
     const pricelist = new Pricelist(schemaManager.schema, pricer);
 
-    pricelist.init();
+    pricelist.init().then(() => {
+        console.info('Connecting to socket server...');
+        pricer.connect();
+    });
 });
 
 import ON_DEATH from 'death';
