@@ -2336,10 +2336,22 @@ export class Pricelist {
                 sell: new Currencies(data.sell)
             };
 
-            const oldBuyValue = oldPrice.buy.toValue(keyPrice);
-            const newBuyValue = newPrices.buy.toValue(keyPrice);
-            const oldSellValue = oldPrice.sell.toValue(keyPrice);
-            const newSellValue = newPrices.sell.toValue(keyPrice);
+            let oldBuyValue = 0;
+            let newBuyValue = 0;
+            let oldSellValue = 0;
+            let newSellValue = 0;
+
+            if (data.sku === '5021;6') {
+                oldBuyValue = oldPrice.buy.metal;
+                newBuyValue = newPrices.buy.metal;
+                oldSellValue = oldPrice.sell.metal;
+                newSellValue = newPrices.sell.metal;
+            } else {
+                oldBuyValue = oldPrice.buy.toValue(keyPrice);
+                newBuyValue = newPrices.buy.toValue(keyPrice);
+                oldSellValue = oldPrice.sell.toValue(keyPrice);
+                newSellValue = newPrices.sell.toValue(keyPrice);
+            }
 
             buyChangesValue = Math.round(newBuyValue - oldBuyValue);
             sellChangesValue = Math.round(newSellValue - oldSellValue);
