@@ -19,17 +19,20 @@ const pricer = new PricesTfPricer(api);
 const urls = JSON.parse(process.env.MAIN_WEBHOOK_URL) as string[];
 PriceUpdateQueue.setURL(urls);
 
+import log, { init } from './lib/logger';
+init();
+
 pricer.init().then(() => {
     schemaManager.init(err => {
         if (err) {
-            console.warn('Fail to get schema');
+            log.error('Fail to get schema', err);
             process.exit(1);
         }
 
         const pricelist = new Pricelist(schemaManager.schema, pricer);
 
         pricelist.init().then(() => {
-            console.info('Connecting to socket server...');
+            log.info('Connecting to socket server...');
             pricer.connect();
         });
     });
@@ -42,7 +45,7 @@ ON_DEATH({ uncaughtException: true })((signalOrErr, origin) => {
     const crashed = signalOrErr !== 'SIGINT';
 
     if (crashed) {
-        console.error(
+        log.error(
             [
                 'Price update bot' + ' crashed! Please create an issue with the following log:',
                 `package.version: ${process.env.BOT_VERSION || undefined}; node: ${process.version} ${
@@ -53,7 +56,7 @@ ON_DEATH({ uncaughtException: true })((signalOrErr, origin) => {
             ].join('\r\n')
         );
     } else {
-        console.warn('Received kill signal `' + (signalOrErr as string) + '`');
+        log.warn('Received kill signal `' + (signalOrErr as string) + '`');
     }
 
     pricer.shutdown();

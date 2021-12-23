@@ -5,6 +5,7 @@ import { XMLHttpRequest } from 'xmlhttprequest-ts';
 import { Item } from './IPricer';
 import PricesTfPricer from '../lib/pricer/pricestf/prices-tf-pricer';
 import { GetItemPriceResponse } from './IPricer';
+import log from '../lib/logger';
 
 const priceUpdateWebhookURLs = JSON.parse(process.env.MAIN_WEBHOOK_URL) as string[];
 
@@ -2262,7 +2263,7 @@ export class Pricelist {
 
     init(): Promise<void> {
         return new Promise(resolve => {
-            console.info('Getting pricelist from prices.tf...');
+            log.info('Getting pricelist from prices.tf...');
 
             this.pricer.getPricelist().then(pricelist => {
                 this.setPricelist(pricelist.items);
@@ -2321,7 +2322,7 @@ export class Pricelist {
 
         if (!data.sku) return;
 
-        console.log(`Received data for ${data.sku}`);
+        log.info(`Received data for ${data.sku}`);
         const item = this.prices[data.sku];
 
         let buyChangesValue = null;
@@ -2769,10 +2770,10 @@ export class Pricelist {
         priceUpdateWebhookURLs.forEach((url, i) => {
             sendWebhook(url, priceUpdate)
                 .then(() => {
-                    console.debug(`Sent ${skus.join(', ')} update to Discord ${i}`);
+                    log.info(`Sent ${skus.join(', ')} update to Discord ${i}`);
                 })
                 .catch(err => {
-                    console.debug(`❌ Failed to send ${skus.join(', ')} price update webhook to Discord ${i}: `, err);
+                    log.error(`❌ Failed to send ${skus.join(', ')} price update webhook to Discord ${i}: `, err);
                 });
         });
     }
@@ -2834,10 +2835,10 @@ export class Pricelist {
 
             sendWebhook(url, priceUpdate)
                 .then(() => {
-                    console.debug(`Sent key prices update to Discord ${i}`);
+                    log.info(`Sent key prices update to Discord ${i}`);
                 })
                 .catch(err => {
-                    console.debug(`❌ Failed to send key prices update webhook to Discord ${i}: `, err);
+                    log.error(`❌ Failed to send key prices update webhook to Discord ${i}: `, err);
                 });
         });
     }
@@ -2918,10 +2919,10 @@ export class PriceUpdateQueue {
         this.url.forEach((url, i) => {
             sendWebhook(url, this.priceUpdate[sku])
                 .then(() => {
-                    console.log(`Sent ${sku} update to Discord ${i}`);
+                    log.info(`Sent ${sku} update to Discord ${i}`);
                 })
                 .catch(err => {
-                    console.log(`❌ Failed to send ${sku} price update webhook to Discord ${i}: `, err);
+                    log.debug(`❌ Failed to send ${sku} price update webhook to Discord ${i}: `, err);
 
                     if (err.text) {
                         const errContent = JSON.parse(err.text);
