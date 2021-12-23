@@ -2326,14 +2326,15 @@ export class Pricelist {
         let buyChangesValue = null;
         let sellChangesValue = null;
 
+        const newPrices = {
+            buy: new Currencies(data.buy),
+            sell: new Currencies(data.sell)
+        };
+
         if (item) {
             const oldPrice = {
                 buy: new Currencies(item.buy),
                 sell: new Currencies(item.sell)
-            };
-            const newPrices = {
-                buy: new Currencies(data.buy),
-                sell: new Currencies(data.sell)
             };
 
             let oldBuyValue = 0;
@@ -2375,6 +2376,11 @@ export class Pricelist {
                 sellChangesValue
             );
         }
+
+        // update data in pricelist (memory)
+        this.prices[data.sku].buy = newPrices.buy;
+        this.prices[data.sku].sell = newPrices.sell;
+        this.prices[data.sku].time = data.time;
     }
 
     static transformPricesFromPricer(prices: Item[]): { [p: string]: Item } {
@@ -2513,9 +2519,6 @@ export class Pricelist {
 
             const newBuyValue = newPrices.buy.toValue(keyPrice);
             const newSellValue = newPrices.sell.toValue(keyPrice);
-
-            this.prices[sku].buy = newPrices.buy;
-            this.prices[sku].sell = newPrices.sell;
 
             buyChangesValue = Math.round(newBuyValue - oldBuyValue);
             sellChangesValue = Math.round(newSellValue - oldSellValue);
