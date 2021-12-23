@@ -2256,6 +2256,12 @@ export class Pricelist {
 
     private readonly boundHandlePriceChange;
 
+    private dailyReceivedCount = 0;
+
+    private dailyUpdatedCount = 0;
+
+    private resetInterval: NodeJS.Timeout;
+
     constructor(private readonly schema: SchemaManager.Schema, private pricer: PricesTfPricer) {
         this.schema = schema;
         this.boundHandlePriceChange = this.handlePriceChange.bind(this);
@@ -2269,6 +2275,8 @@ export class Pricelist {
                 this.setPricelist(pricelist.items);
 
                 this.pricer.bindHandlePriceEvent(this.boundHandlePriceChange);
+
+                this.initDailyCount();
 
                 return resolve();
             });
@@ -2322,7 +2330,8 @@ export class Pricelist {
 
         if (!data.sku) return;
 
-        log.info(`Received data for ${data.sku}`);
+        this.dailyReceivedCount++;
+        log.info(`Received data (${this.dailyReceivedCount}) for ${data.sku}`);
         const item = this.prices[data.sku];
 
         let buyChangesValue = null;
@@ -2370,19 +2379,93 @@ export class Pricelist {
         }
 
         if (data.buy !== null) {
-            this.sendWebHookPriceUpdateV1(
-                data.sku,
-                newPrices,
-                data.time,
-                buyChangesValue,
-                sellChangesValue
-            );
+            this.sendWebHookPriceUpdateV1(data.sku, newPrices, data.time, buyChangesValue, sellChangesValue);
         }
 
         // update data in pricelist (memory)
         this.prices[data.sku].buy = newPrices.buy;
         this.prices[data.sku].sell = newPrices.sell;
         this.prices[data.sku].time = data.time;
+
+        this.dailyUpdatedCount++;
+        log.info(`${data.sku} updated - (${this.dailyUpdatedCount})`);
+    }
+
+    initDailyCount(): void {
+        // set interval to check current time every 1 second.
+        this.resetInterval = setInterval(() => {
+            const now = new Date().toUTCString();
+
+            if (now.includes(' 00:00:0')) {
+                clearInterval(this.resetInterval);
+
+                const webhook: Webhook = {
+                    username: webhookDisplayName,
+                    avatar_url: webhookAvatarURL,
+                    content: '',
+                    embeds: [
+                        {
+                            author: {
+                                name: 'Daily Count Record',
+                                url: '',
+                                icon_url: ''
+                            },
+                            footer: {
+                                text: `${now} • v${botVersion}`
+                            },
+                            title: '',
+                            fields: [
+                                {
+                                    name: 'Data received',
+                                    value: this.dailyReceivedCount.toString()
+                                },
+                                {
+                                    name: 'Price updated',
+                                    value: this.dailyUpdatedCount.toString()
+                                },
+                                {
+                                    name: 'Total items',
+                                    value: Object.keys(this.prices).length.toString()
+                                }
+                            ],
+                            color: '14051524'
+                        }
+                    ]
+                };
+
+                this.sendDailyCount(webhook);
+
+                // Reset counter
+                this.dailyReceivedCount = 0;
+                this.dailyUpdatedCount = 0;
+
+                setTimeout(() => {
+                    // after 10 seconds, we initiate this again.
+                    this.initDailyCount();
+                }, 10000);
+            }
+        }, 1000);
+    }
+
+    private sendDailyCount(webhook: Webhook): void {
+        priceUpdateWebhookURLs.forEach((url, i) => {
+            sendWebhook(url, webhook)
+                .then(() => log.info(`Sent daily record to Discord (${i})`))
+                .catch(err => {
+                    if (err.text) {
+                        const errContent = JSON.parse(err.text);
+                        if (errContent.message === 'The resource is being rate limited.') {
+                            if (i === 0) {
+                                // make sure to only retry once
+                                setTimeout(() => {
+                                    // retry to send after the retry value + 10 seconds
+                                    this.sendDailyCount(webhook);
+                                }, errContent.retry_after + 10000);
+                            }
+                        }
+                    }
+                });
+        });
     }
 
     static transformPricesFromPricer(prices: Item[]): { [p: string]: Item } {
