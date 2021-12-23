@@ -2342,10 +2342,10 @@ export class Pricelist {
             let newSellValue = 0;
 
             if (data.sku === '5021;6') {
-                oldBuyValue = oldPrice.buy.metal;
-                newBuyValue = newPrices.buy.metal;
-                oldSellValue = oldPrice.sell.metal;
-                newSellValue = newPrices.sell.metal;
+                oldBuyValue = oldPrice.buy.toValue();
+                newBuyValue = newPrices.buy.toValue();
+                oldSellValue = oldPrice.sell.toValue();
+                newSellValue = newPrices.sell.toValue();
             } else {
                 oldBuyValue = oldPrice.buy.toValue(keyPrice);
                 newBuyValue = newPrices.buy.toValue(keyPrice);
