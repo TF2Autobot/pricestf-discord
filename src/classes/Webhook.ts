@@ -3005,7 +3005,7 @@ export class PriceUpdateQueue {
                     log.info(`Sent ${sku} update to Discord ${i}`);
                 })
                 .catch(err => {
-                    log.debug(`❌ Failed to send ${sku} price update webhook to Discord ${i}: `, err);
+                    log.error(`❌ Failed to send ${sku} price update webhook to Discord ${i}: `, err);
 
                     if (err.text) {
                         const errContent = JSON.parse(err.text);
