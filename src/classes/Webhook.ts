@@ -2452,20 +2452,29 @@ export class Pricelist {
             sendWebhook(url, webhook)
                 .then(() => log.info(`Sent daily record to Discord (${i})`))
                 .catch(err => {
-                    if (err.text) {
-                        const errContent = JSON.parse(err.text);
-                        if (errContent.message === 'The resource is being rate limited.') {
-                            if (i === 0) {
-                                // make sure to only retry once
-                                setTimeout(() => {
-                                    // retry to send after the retry value + 10 seconds
-                                    this.sendDailyCount(webhook);
-                                }, errContent.retry_after + 10000);
-                            }
-                        }
-                    }
+                    this.handleSendDailyCountError(err, webhook, i);
                 });
         });
+    }
+
+    private resendDailyCount(webhook: Webhook, urlIndex: number): void {
+        sendWebhook(priceUpdateWebhookURLs[urlIndex], webhook)
+            .then(() => log.info(`Resent daily record to Discord (${urlIndex})`))
+            .catch(err => {
+                this.handleSendDailyCountError(err, webhook, urlIndex);
+            });
+    }
+
+    private handleSendDailyCountError(err: any, webhook: Webhook, urlIndex: number): void {
+        if (err.text) {
+            const errContent = JSON.parse(err.text);
+            if (errContent?.message === 'The resource is being rate limited.') {
+                setTimeout(() => {
+                    // retry to send after the retry value + 10 seconds
+                    this.resendDailyCount(webhook, urlIndex);
+                }, errContent.retry_after + 10000);
+            }
+        }
     }
 
     static transformPricesFromPricer(prices: Item[]): { [p: string]: Item } {
@@ -3009,7 +3018,7 @@ export class PriceUpdateQueue {
 
                     if (err.text) {
                         const errContent = JSON.parse(err.text);
-                        if (errContent.message === 'The resource is being rate limited.') {
+                        if (errContent?.message === 'The resource is being rate limited.') {
                             this.sleepTime = errContent.retry_after;
                             this.isRateLimited = true;
                         }
