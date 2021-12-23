@@ -2321,6 +2321,7 @@ export class Pricelist {
 
         if (!data.sku) return;
 
+        console.log(`Received data for ${data.sku}`);
         const item = this.prices[data.sku];
 
         let buyChangesValue = null;
