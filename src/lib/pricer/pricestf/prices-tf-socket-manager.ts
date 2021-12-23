@@ -2,6 +2,7 @@ import ReconnectingWebSocket from 'reconnecting-websocket';
 import WS from 'ws';
 import * as Events from 'reconnecting-websocket/events';
 import PricesTfApi from './prices-tf-api';
+import log from '../../logger';
 
 export default class PricesTfSocketManager {
     private readonly socketClass;
@@ -23,13 +24,13 @@ export default class PricesTfSocketManager {
 
     private socketDisconnected() {
         return () => {
-            console.debug('Disconnected from socket server');
+            log.debug('Disconnected from socket server');
         };
     }
 
     private socketConnect() {
         return () => {
-            console.debug('Connected to socket server');
+            log.debug('Connected to socket server');
         };
     }
 
@@ -47,10 +48,10 @@ export default class PricesTfSocketManager {
 
             this.ws.addEventListener('error', err => {
                 if (err.message === 'Unexpected server response: 401') {
-                    console.log('JWT expired');
+                    log.debug('JWT expired');
                     void this.api.setupToken().then(() => this.ws.reconnect());
                 } else {
-                    console.error(err.error);
+                    log.error(err.error);
                 }
             });
 
