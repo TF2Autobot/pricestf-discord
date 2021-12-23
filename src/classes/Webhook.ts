@@ -2366,13 +2366,13 @@ export class Pricelist {
         }
 
         if (data.sku === '5021;6') {
-            this.sendWebhookKeyUpdate(data.sku, { buy: data.buy, sell: data.sell }, data.time);
+            this.sendWebhookKeyUpdate(data.sku, newPrices, data.time);
         }
 
         if (data.buy !== null) {
             this.sendWebHookPriceUpdateV1(
                 data.sku,
-                { buy: data.buy, sell: data.sell },
+                newPrices,
                 data.time,
                 buyChangesValue,
                 sellChangesValue
