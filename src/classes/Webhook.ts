@@ -2854,7 +2854,7 @@ export class Pricelist {
                 {
                     author: {
                         name: itemName,
-                        url: `https://www.prices.tf/items/${sku}`,
+                        url: `https://autobot.tf/items/${sku}`,
                         icon_url:
                             'https://steamcdn-a.akamaihd.net/steamcommunity/public/images/avatars/3d/3dba19679c4a689b9d24fa300856cbf3d948d631_full.jpg'
                     },
@@ -3039,7 +3039,7 @@ export class Pricelist {
             embed.push({
                 author: {
                     name: data.name,
-                    url: `https://www.prices.tf/items/${data.sku}`,
+                    url: `https://autobot.tf/items/${data.sku}`,
                     icon_url:
                         'https://steamcdn-a.akamaihd.net/steamcommunity/public/images/avatars/3d/3dba19679c4a689b9d24fa300856cbf3d948d631_full.jpg'
                 },
@@ -3106,7 +3106,7 @@ export class Pricelist {
                 {
                     author: {
                         name: 'Mann Co. Supply Crate Key',
-                        url: `https://www.prices.tf/items/${sku}`,
+                        url: `https://autobot.tf/items/${sku}`,
                         icon_url:
                             'https://steamcdn-a.akamaihd.net/steamcommunity/public/images/avatars/3d/3dba19679c4a689b9d24fa300856cbf3d948d631_full.jpg'
                     },
