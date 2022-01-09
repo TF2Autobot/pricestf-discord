@@ -2484,6 +2484,8 @@ export class Pricelist {
 
     private resetInterval: NodeJS.Timeout;
 
+    private isMentionKeyPrices = false;
+
     constructor(private readonly schema: SchemaManager.Schema, private pricer: PricesTfPricer) {
         this.schema = schema;
         this.boundHandlePriceChange = this.handlePriceChange.bind(this);
@@ -2758,7 +2760,7 @@ export class Pricelist {
         ) {
             const front =
                 'https://community.cloudflare.steamstatic.com/economy/image/IzMF03bi9WpSBq-S-ekoE33L-iLqGFHVaU25ZzQNQcXdEH9myp0du1AHE66AL6lNU5Fw_2yIWtaMjIpQmjAT';
-            const url = itemName.includes('Unusualifier') ? unusualifierImages[sku] :  strangifierImages[sku];
+            const url = itemName.includes('Unusualifier') ? unusualifierImages[sku] : strangifierImages[sku];
 
             if (url) {
                 itemImageUrlPrint = `${front}${url}/520fx520f`;
@@ -3095,6 +3097,13 @@ export class Pricelist {
         });
     }
 
+    private waitNextMention(): void {
+        const hour12 = 12 * 60 * 60 * 1000;
+        setTimeout(() => {
+            this.isMentionKeyPrices = false;
+        }, hour12);
+    }
+
     sendWebhookKeyUpdate(sku: string, prices: Prices, time: number): void {
         const itemImageUrl = this.schema.getItemByItemName('Mann Co. Supply Crate Key');
 
@@ -3148,7 +3157,14 @@ export class Pricelist {
 
         // send key price update to only key price update webhook.
         keyPriceWebhookURLs.forEach((url, i) => {
-            priceUpdate.content = KeyPriceRoleIDs[i] === 'no role' ? '' : `<@&${KeyPriceRoleIDs[i]}>`;
+            if (this.isMentionKeyPrices === false) {
+                priceUpdate.content = KeyPriceRoleIDs[i] === 'no role' ? '' : `<@&${KeyPriceRoleIDs[i]}>`;
+
+                if (keyPriceWebhookURLs.length - i === 1) {
+                    this.isMentionKeyPrices = true;
+                    this.waitNextMention();
+                }
+            }
 
             sendWebhook(url, priceUpdate)
                 .then(() => {
