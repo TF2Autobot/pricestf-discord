@@ -1,6 +1,6 @@
 {
   "name": "pricestf-discord",
-  "version": "3.2.4",
+  "version": "3.2.5",
   "description": "Connect to prices.tf and display the items prices update to your Discord server",
   "main": "index.js",
   "scripts": {
