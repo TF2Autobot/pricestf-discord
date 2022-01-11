@@ -2701,21 +2701,29 @@ export class Pricelist {
     }
 
     private handlePriceChange(data: GetItemPriceResponse): void {
-        const keyPrice = this.keyPrice;
-
         if (!data.sku) return;
 
         this.dailyReceivedCount++;
-        log.info(`Received data (${this.dailyReceivedCount}) for ${data.sku}`);
-        const item = this.prices[data.sku];
-
-        let buyChangesValue = null;
-        let sellChangesValue = null;
+        const sku = data.sku;
+        log.info(`Received data (${this.dailyReceivedCount}) for ${sku}`);
 
         const newPrices = {
             buy: new Currencies(data.buy),
             sell: new Currencies(data.sell)
         };
+
+        if (sku === '5021;6') {
+            this.keyPrices = {
+                buy: newPrices.buy,
+                sell: newPrices.sell,
+                time: data.time
+            };
+        }
+
+        const item = this.prices[sku];
+
+        let buyChangesValue = null;
+        let sellChangesValue = null;
 
         if (item) {
             const oldPrice = {
@@ -2734,10 +2742,10 @@ export class Pricelist {
                 oldSellValue = oldPrice.sell.toValue();
                 newSellValue = newPrices.sell.toValue();
             } else {
-                oldBuyValue = oldPrice.buy.toValue(keyPrice);
-                newBuyValue = newPrices.buy.toValue(keyPrice);
-                oldSellValue = oldPrice.sell.toValue(keyPrice);
-                newSellValue = newPrices.sell.toValue(keyPrice);
+                oldBuyValue = oldPrice.buy.toValue(this.keyPrice);
+                newBuyValue = newPrices.buy.toValue(this.keyPrice);
+                oldSellValue = oldPrice.sell.toValue(this.keyPrice);
+                newSellValue = newPrices.sell.toValue(this.keyPrice);
             }
 
             buyChangesValue = Math.round(newBuyValue - oldBuyValue);
@@ -2749,21 +2757,21 @@ export class Pricelist {
             }
         }
 
-        if (data.sku === '5021;6') {
-            this.sendWebhookKeyUpdate(data.sku, newPrices, data.time);
-        }
-
         if (data.buy !== null) {
-            this.sendWebHookPriceUpdateV1(data.sku, newPrices, data.time, buyChangesValue, sellChangesValue);
+            if (sku === '5021;6') {
+                this.sendWebhookKeyUpdate(sku, newPrices, data.time);
+            } else {
+                this.sendWebHookPriceUpdateV1(sku, newPrices, data.time, buyChangesValue, sellChangesValue);
+            }
+
+            // update data in pricelist (memory)
+            this.prices[sku].buy = newPrices.buy;
+            this.prices[sku].sell = newPrices.sell;
+            this.prices[sku].time = data.time;
+
+            this.dailyUpdatedCount++;
+            log.info(`${data.sku} updated - (${this.dailyUpdatedCount})`);
         }
-
-        // update data in pricelist (memory)
-        this.prices[data.sku].buy = newPrices.buy;
-        this.prices[data.sku].sell = newPrices.sell;
-        this.prices[data.sku].time = data.time;
-
-        this.dailyUpdatedCount++;
-        log.info(`${data.sku} updated - (${this.dailyUpdatedCount})`);
     }
 
     initDailyCount(): void {
@@ -3298,12 +3306,6 @@ export class Pricelist {
                     color: '16766720'
                 }
             ]
-        };
-
-        this.keyPrices = {
-            buy: new Currencies(prices.buy),
-            sell: new Currencies(prices.sell),
-            time: time
         };
 
         // send key price update to only key price update webhook.
