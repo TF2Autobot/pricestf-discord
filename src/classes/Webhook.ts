@@ -3360,7 +3360,7 @@ export class PriceUpdateQueue {
         this.url = url;
     }
 
-    private static sleepTime = 2000;
+    private static sleepTime = 1000;
 
     private static isRateLimited = false;
 
@@ -3396,7 +3396,7 @@ export class PriceUpdateQueue {
         await sleepasync().Promise.sleep(this.sleepTime);
 
         if (this.isRateLimited) {
-            this.sleepTime = 2000;
+            this.sleepTime = 1000;
             this.isRateLimited = false;
         }
 
