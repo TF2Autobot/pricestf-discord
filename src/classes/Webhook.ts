@@ -2703,61 +2703,61 @@ export class Pricelist {
     private handlePriceChange(data: GetItemPriceResponse): void {
         if (!data.sku) return;
 
-        this.dailyReceivedCount++;
-        const sku = data.sku;
-        log.info(`Received data (${this.dailyReceivedCount}) for ${sku}`);
-
-        const newPrices = {
-            buy: new Currencies(data.buy),
-            sell: new Currencies(data.sell)
-        };
-
-        if (sku === '5021;6') {
-            this.keyPrices = {
-                buy: newPrices.buy,
-                sell: newPrices.sell,
-                time: data.time
-            };
-        }
-
-        const item = this.prices[sku];
-
-        let buyChangesValue = null;
-        let sellChangesValue = null;
-
-        if (item) {
-            const oldPrice = {
-                buy: new Currencies(item.buy),
-                sell: new Currencies(item.sell)
-            };
-
-            let oldBuyValue = 0;
-            let newBuyValue = 0;
-            let oldSellValue = 0;
-            let newSellValue = 0;
-
-            if (data.sku === '5021;6') {
-                oldBuyValue = oldPrice.buy.toValue();
-                newBuyValue = newPrices.buy.toValue();
-                oldSellValue = oldPrice.sell.toValue();
-                newSellValue = newPrices.sell.toValue();
-            } else {
-                oldBuyValue = oldPrice.buy.toValue(this.keyPrice);
-                newBuyValue = newPrices.buy.toValue(this.keyPrice);
-                oldSellValue = oldPrice.sell.toValue(this.keyPrice);
-                newSellValue = newPrices.sell.toValue(this.keyPrice);
-            }
-
-            buyChangesValue = Math.round(newBuyValue - oldBuyValue);
-            sellChangesValue = Math.round(newSellValue - oldSellValue);
-
-            if (buyChangesValue === 0 && sellChangesValue === 0) {
-                // Ignore
-                return;
-            }
-        }
-
         if (data.buy !== null) {
+            this.dailyReceivedCount++;
+            const sku = data.sku;
+            log.info(`Received data (${this.dailyReceivedCount}) for ${sku}`);
+
+            const newPrices = {
+                buy: new Currencies(data.buy),
+                sell: new Currencies(data.sell)
+            };
+
+            if (sku === '5021;6') {
+                this.keyPrices = {
+                    buy: newPrices.buy,
+                    sell: newPrices.sell,
+                    time: data.time
+                };
+            }
+
+            const item = this.prices[sku];
+
+            let buyChangesValue = null;
+            let sellChangesValue = null;
+
+            if (item) {
+                const oldPrice = {
+                    buy: new Currencies(item.buy),
+                    sell: new Currencies(item.sell)
+                };
+
+                let oldBuyValue = 0;
+                let newBuyValue = 0;
+                let oldSellValue = 0;
+                let newSellValue = 0;
+
+                if (data.sku === '5021;6') {
+                    oldBuyValue = oldPrice.buy.toValue();
+                    newBuyValue = newPrices.buy.toValue();
+                    oldSellValue = oldPrice.sell.toValue();
+                    newSellValue = newPrices.sell.toValue();
+                } else {
+                    oldBuyValue = oldPrice.buy.toValue(this.keyPrice);
+                    newBuyValue = newPrices.buy.toValue(this.keyPrice);
+                    oldSellValue = oldPrice.sell.toValue(this.keyPrice);
+                    newSellValue = newPrices.sell.toValue(this.keyPrice);
+                }
+
+                buyChangesValue = Math.round(newBuyValue - oldBuyValue);
+                sellChangesValue = Math.round(newSellValue - oldSellValue);
+
+                if (buyChangesValue === 0 && sellChangesValue === 0) {
+                    // Ignore
+                    return;
+                }
+            }
+
             if (sku === '5021;6') {
                 this.sendWebhookKeyUpdate(sku, newPrices, data.time);
             } else {
