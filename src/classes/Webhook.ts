@@ -1926,8 +1926,14 @@ export class Pricelist {
 
             if (sku === '5021;6') {
                 this.keyPrices = {
-                    buy: newPrices.buy,
-                    sell: newPrices.sell,
+                    buy: new Currencies({
+                        keys: 0,
+                        metal: data.buy.metal
+                    }),
+                    sell: new Currencies({
+                        keys: 0,
+                        metal: data.sell.metal
+                    }),
                     time: data.time
                 };
             }
@@ -1939,8 +1945,8 @@ export class Pricelist {
 
             if (item) {
                 const oldPrice = {
-                    buy: new Currencies(item.buy),
-                    sell: new Currencies(item.sell)
+                    buy: item.buy,
+                    sell: item.sell
                 };
 
                 let oldBuyValue = 0;
@@ -1971,13 +1977,14 @@ export class Pricelist {
 
             if (sku === '5021;6') {
                 this.sendWebhookKeyUpdate(sku, newPrices, data.time);
+                this.prices[sku].buy = this.keyPrices.buy;
+                this.prices[sku].sell = this.keyPrices.sell;
             } else {
                 this.sendWebHookPriceUpdateV1(sku, newPrices, data.time, buyChangesValue, sellChangesValue);
+                this.prices[sku].buy = newPrices.buy;
+                this.prices[sku].sell = newPrices.sell;
             }
 
-            // update data in pricelist (memory)
-            this.prices[sku].buy = newPrices.buy;
-            this.prices[sku].sell = newPrices.sell;
             this.prices[sku].time = data.time;
 
             this.dailyUpdatedCount++;
