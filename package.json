@@ -9,11 +9,11 @@
   "author": "IdiNium",
   "license": "MIT",
   "devDependencies": {
-    "@types/death": "^1.1.1",
-    "@types/node": "^15.12.2",
-    "@types/request": "^2.48.5",
+    "@types/death": "^1.1.2",
+    "@types/node": "^15.14.9",
+    "@types/request": "^2.48.8",
     "@types/ws": "^8.2.2",
-    "typescript": "^4.3.2"
+    "typescript": "^4.5.5"
   },
   "dependencies": {
     "@tf2autobot/tf2-currencies": "^2.0.1",
@@ -23,11 +23,11 @@
     "dotenv": "^10.0.0",
     "reconnecting-websocket": "^4.4.0",
     "request": "^2.88.2",
-    "request-retry-dayjs": "^1.0.4",
+    "request-retry-dayjs": "^1.1.0",
     "sleep-async": "^1.0.5",
-    "winston": "^3.4.0",
-    "winston-daily-rotate-file": "^4.5.5",
-    "ws": "^8.3.0",
+    "winston": "^3.6.0",
+    "winston-daily-rotate-file": "^4.6.1",
+    "ws": "^8.5.0",
     "xmlhttprequest-ts": "^1.0.1"
   }
 }
