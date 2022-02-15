@@ -27,6 +27,21 @@ export default class PricesTfPricer implements IPricer {
     }
 
     async getPricelist(): Promise<GetPricelistResponse> {
+        try {
+            const pricelist = await PricesTfApi.apiRequest(
+                'GET',
+                '/json/pricelist-array',
+                {},
+                {},
+                'https://autobot.tf'
+            );
+
+            return pricelist;
+        } catch (err) {
+            log.error('Failed to get pricelist from autobot.tf: ', err);
+        }
+
+        // If failed, get from prices.tf
         let prices: PricesTfItem[] = [];
         let currentPage = 1;
         let totalPages = 0;
